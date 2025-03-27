@@ -2,6 +2,19 @@ const request = require('supertest');
 var assert = require('assert');
 const app = require('../index');
 
+const resetDb = async() => {
+    // I would even recommend to reset data in db directly, not using the endpoint
+    const result = await request(app).get('/api/games');
+        
+    if (result.body.length > 0) {
+        const deletePromises = result.body.map(game => 
+            request(app).delete(`/api/games/${game.id}`)
+        );
+        
+        await Promise.all(deletePromises);
+    }
+}
+
 /**
  * Testing create game endpoint
  */
@@ -233,20 +246,6 @@ describe('POST /api/games/search - Search Functionality', function () {
             .send(androidGame);
     });
     
-    // Clean up after tests
-    after(async function() {
-        const result = await request(app).get('/api/games');
-        
-        // Delete any games that were created
-        if (result.body.length > 0) {
-            const deletePromises = result.body.map(game => 
-                request(app).delete(`/api/games/${game.id}`)
-            );
-            
-            await Promise.all(deletePromises);
-        }
-    });
-
     it('should search by name only', async function () {
         const searchData = {
             name: 'Search',
@@ -315,5 +314,39 @@ describe('POST /api/games/search - Search Functionality', function () {
             .expect(200);
             
         assert.strictEqual(result.body.length, 0);
+    });
+});
+
+/**
+ * Testing populate games endpoint
+ */
+describe('POST /api/games/populate', function () {
+    before(async function() {
+        await resetDb();
+    });
+    
+    after(async function() {
+        await resetDb();
+    });
+
+    it('should populate the database with 200 games (100 iOS and 100 Android)', async function () {
+        await request(app)
+            .post('/api/games/populate')
+            .set('Accept', 'application/json')
+            .expect(204);
+            
+        const result = await request(app)
+            .get('/api/games')
+            .set('Accept', 'application/json')
+            .expect('Content-Type', /json/)
+            .expect(200);
+            
+        assert.strictEqual(result.body.length, 200);
+        
+        const iosGames = result.body.filter(game => game.platform === 'ios');
+        const androidGames = result.body.filter(game => game.platform === 'android');
+        
+        assert.strictEqual(iosGames.length, 100);
+        assert.strictEqual(androidGames.length, 100);
     });
 });
