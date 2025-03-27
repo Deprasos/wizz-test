@@ -131,3 +131,189 @@ describe('GET /api/games', function () {
     });
 });
 
+
+/**
+ * Testing search games endpoint validation
+ */
+describe('POST /api/games/search - Validation Tests', function () {
+    it('should respond with 400 when name field is missing', async function () {
+        const data = {
+            platform: 'ios'
+        };
+        
+        const result = await request(app)
+            .post('/api/games/search')
+            .send(data)
+            .set('Accept', 'application/json')
+            .expect('Content-Type', /json/)
+            .expect(400);
+            
+        assert.strictEqual(result.body.error, 'name field is required');
+    });
+
+    it('should respond with 400 when name has invalid type', async function () {
+        const data = {
+            name: 123,
+            platform: 'ios'
+        };
+        
+        const result = await request(app)
+            .post('/api/games/search')
+            .send(data)
+            .set('Accept', 'application/json')
+            .expect('Content-Type', /json/)
+            .expect(400);
+            
+        assert.strictEqual(result.body.error, 'name field must be a string');
+    });
+
+    it('should respond with 400 when platform has invalid value', async function () {
+        const data = {
+            name: 'Test App',
+            platform: 'windows'
+        };
+        
+        const result = await request(app)
+            .post('/api/games/search')
+            .send(data)
+            .set('Accept', 'application/json')
+            .expect('Content-Type', /json/)
+            .expect(400);
+            
+        assert.strictEqual(result.body.error, `Invalid enum value. Expected '' | 'ios' | 'android', received 'windows'`);
+    });
+});
+
+/**
+ * Testing search games functionality
+ */
+describe('POST /api/games/search - Search Functionality', function () {
+    before(async function() {
+        const iosGame = {
+            publisherId: "1234567890",
+            name: "Test Search App",
+            platform: "ios",
+            storeId: "1234",
+            bundleId: "test.bundle.id",
+            appVersion: "1.0.0",
+            isPublished: true
+        };
+
+        const iosGame2 = {
+            publisherId: "1234567890",
+            name: "Test App",
+            platform: "ios",
+            storeId: "1234",
+            bundleId: "test.bundle.id",
+            appVersion: "1.0.0",
+            isPublished: true
+        };
+
+        const androidGame = {
+            publisherId: "1234567890",
+            name: "Test App",
+            platform: "android",
+            storeId: "1234",
+            bundleId: "test.bundle.id",
+            appVersion: "1.0.0",
+            isPublished: true
+        };
+        
+        // I would even recommend to create data in db directly, not using the endpoint
+        await request(app)
+            .post('/api/games')
+            .send(iosGame);
+        
+        await request(app)
+            .post('/api/games')
+            .send(iosGame2);
+        
+        await request(app)
+            .post('/api/games')
+            .send(androidGame);
+    });
+    
+    // Clean up after tests
+    after(async function() {
+        const result = await request(app).get('/api/games');
+        
+        // Delete any games that were created
+        if (result.body.length > 0) {
+            const deletePromises = result.body.map(game => 
+                request(app).delete(`/api/games/${game.id}`)
+            );
+            
+            await Promise.all(deletePromises);
+        }
+    });
+
+    it('should search by name only', async function () {
+        const searchData = {
+            name: 'Search',
+            platform: ''
+        };
+        
+        const result = await request(app)
+            .post('/api/games/search')
+            .send(searchData)
+            .set('Accept', 'application/json')
+            .expect('Content-Type', /json/)
+            .expect(200);
+            
+        assert.strictEqual(result.body.length === 1, true);
+        assert.strictEqual(result.body[0].name.includes('Search'), true);
+    });
+
+    it('should search by platform only', async function () {
+        const searchData = {
+            name: '',
+            platform: 'ios'
+        };
+        
+        const result = await request(app)
+            .post('/api/games/search')
+            .send(searchData)
+            .set('Accept', 'application/json')
+            .expect('Content-Type', /json/)
+            .expect(200);
+            
+        assert.strictEqual(result.body.length === 2, true);
+        result.body.forEach(game => {
+            assert.strictEqual(game.platform, 'ios');
+        });
+    });
+
+    it('should search by both name and platform', async function () {
+        const searchData = {
+            name: 'Search',
+            platform: 'ios'
+        };
+        
+        const result = await request(app)
+            .post('/api/games/search')
+            .send(searchData)
+            .set('Accept', 'application/json')
+            .expect('Content-Type', /json/)
+            .expect(200);
+            
+        assert.strictEqual(result.body.length === 1, true);
+        assert.strictEqual(result.body[0].name.includes('Search'), true);
+        assert.strictEqual(result.body[0].platform === 'ios', true);
+    });
+
+    it('should return no results for non-matching search', async function () {
+        const searchData = {
+            name: 'NonExistentGameName',
+            platform: 'ios'
+        };
+        
+        const result = await request(app)
+            .post('/api/games/search')
+            .send(searchData)
+            .set('Accept', 'application/json')
+            .expect('Content-Type', /json/)
+            .expect(200);
+            
+        assert.strictEqual(result.body.length, 0);
+    });
+});
