@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const db = require('./models');
 
 const searchController = require('./controllers/games/search');
+const populateController = require('./controllers/games/populate');
 
 const app = express();
 
@@ -55,6 +56,8 @@ app.put('/api/games/:id', (req, res) => {
 });
 
 app.post('/api/games/search', searchController);
+
+app.post('/api/games/populate', populateController);
 
 app.listen(3000, () => {
   console.log('Server is up on port 3000');
