@@ -38,6 +38,16 @@
       <add-update-game title="Add Game" @save-game="onAddOrUpdateGame" />
     </div>
   </section>
+  <section class="section section-container" style="padding-bottom: 10px;">
+    <form class="form" @submit.prevent="populateGames">
+      <h2 class="title">Populate Games</h2> 
+      <div class="field">
+        <div class="control">
+          <button class="button is-success">Populate</button>
+        </div>
+      </div>
+   </form>
+  </section>
 </div>
 <script>
   const AddUpdateGame = {
@@ -255,6 +265,13 @@
           .then((response) => {
             this.games = response.data
           })
+      },
+      async populateGames () {
+        await axios.post(`${this.apiURL}/populate`);
+        this.searchGames({
+          name: '',
+          platform: '',
+        });
       }
     },
     beforeMount () {
