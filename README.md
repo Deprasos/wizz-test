@@ -63,8 +63,25 @@ Many other applications at Voodoo will use consume this API.
 We are planning to put this project in production. According to you, what are the missing pieces to make this project production ready? 
 Please elaborate an action plan.
 
+On the API:
+- Better error handling: don't return directly errors to the frontend but generate error message on a specific middleware and then return them.
+- Validations on other existing endpoints: validate params send by the frontend to the api before inserting games in the database.
+- Avoid duplication of games in the database: make sure that if you try to create a game twice then it's blocked by the API to avoid duplication (check publisher id, store id and bundle id for example).
+- Use uuid as id in database: don't use incremental primary key id in database to make sure that you can not predict ids (not really on issue on this kind of data but still it's a good practise).
+- Add authentication mechanism: add a basic authentication mechanism, at least on the creation and populate routes in order to make sure that only authentified users can create games in database. You probably don't want that every one can update your database.
+- Add limit on listing routes: limit the result that the query to the database could return when listing games in order to not return thousands of games if the database grows a lot. Then we would need to implement pagination to do that.
+- Add cache on listing routes: as the database is not subject to change a lot every minutes, a cache mechanism on listing routes could improve the performances and reduce the database queries.
+- Tests: currently first tests on the test.js file is dependant on the previous test. This is not a good practice, you would prefer to have each test independant. Then if a test need that game is existing in database, I would create the game first directly in database before testing the endpoint and after you need to clean the database state. Then you make sure that each test is independant and that a test can not impact another one (we could miss bugs even if all tests passed).
+- Environment file: use env variables for sensitive information (database url, crendentials, etc).
+
+On the infra - CI/CD:
+- Add github actions for CI: add a github actions runner to run all tests to before merging a pull request for example.
+- Deployment in production: As this is a simple node js application, we could build a docker image for the app and deploy this image on cloud provider service (ECS on AWS for example). We also need to provision a database (Aurora postgre SQL on AWS for example).
+
 #### Question 2:
 Let's pretend our data team is now delivering new files every day into the S3 bucket, and our service needs to ingest those files
 every day through the populate API. Could you describe a suitable solution to automate this? Feel free to propose architectural changes.
+
+As the data team is using S3, I'm considering that we are fully on AWS and that we can use all services that AWS can provide. I would then create an automation on the S3 bucket to directly trigger a lambda function each time there is a new file that is dropped on the bucket. The lambda function would have the key of the dropped file as input and then it will be this lambda that will handle the logic of populating the database. As already answered in the previous question, it will of course check for any existing game in the database before inserting any game. At the end the lambda could notify some users that new games are available in the database, using AWS SNS for example. With this solution we can remove the populate route from the API.
 
 
