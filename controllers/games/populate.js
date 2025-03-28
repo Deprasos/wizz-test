@@ -35,6 +35,7 @@ const populate = async(_req, res) => {
     const iosGames = loadAndPreProcessData('ios');
     const androidGames = loadAndPreProcessData('android');
 
+    // We should validate that we don't create a game twice in case of re-import
     const result = await db.Game.bulkCreate([...iosGames, ...androidGames]);
 
     console.log(`Added ${result.length} games in db`);
